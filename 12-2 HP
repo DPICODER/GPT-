@@ -1,0 +1,166 @@
+To make your dashboard dynamic using **EJS**, follow these steps:
+
+### 1. **Pass Data from Backend (Node.js & Express)**
+Modify your Express route to fetch real-time data and pass it to your EJS template.
+
+#### Example: `server.js`
+```javascript
+const express = require('express');
+const app = express();
+const port = 3000;
+
+app.set('view engine', 'ejs');
+
+app.get('/', (req, res) => {
+    const dashboardData = {
+        totalAssets: 1890,
+        allottedAssets: 1200,
+        totalValue: '$150K',
+        freeAssets: 400,
+        repairAssets: 150,
+        decommissionedAssets: 140,
+        recentAllocations: [
+            { date: 'Feb 10', action: 'Allocated', type: 'PC', quantity: 10 },
+            { date: 'Feb 08', action: 'Repaired', type: 'Printer', quantity: 5 },
+            { date: 'Feb 05', action: 'Decommissioned', type: 'Monitor', quantity: 3 }
+        ],
+        assetCategories: [
+            { label: 'PCs', value: 500 },
+            { label: 'Printers', value: 200 },
+            { label: 'Monitors', value: 300 },
+            { label: 'Webcams', value: 150 },
+            { label: 'Pendrives', value: 100 }
+        ],
+        departmentAssets: [
+            { label: 'IT', value: 300 },
+            { label: 'HR', value: 200 },
+            { label: 'Finance', value: 250 },
+            { label: 'Operations', value: 180 },
+            { label: 'Support', value: 150 }
+        ]
+    };
+
+    res.render('dashboard', { data: dashboardData });
+});
+
+app.listen(port, () => {
+    console.log(`Server running at http://localhost:${port}`);
+});
+```
+
+---
+
+### 2. **Modify Your EJS Template**
+Change your **HTML file** (`dashboard.ejs`) to display dynamic values.
+
+#### Example: `views/dashboard.ejs`
+```html
+<div class="row">
+    <div class="col-md-2">
+        <div class="card text-white bg-primary p-3">
+            <h5>Total Assets</h5>
+            <h2><%= data.totalAssets %></h2>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card text-white bg-success p-3">
+            <h5>Allotted Assets</h5>
+            <h2><%= data.allottedAssets %></h2>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card text-white bg-warning p-3">
+            <h5>Total Value</h5>
+            <h2><%= data.totalValue %></h2>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card text-white bg-info p-3">
+            <h5>Free Assets</h5>
+            <h2><%= data.freeAssets %></h2>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card text-white bg-danger p-3">
+            <h5>Repair Assets</h5>
+            <h2><%= data.repairAssets %></h2>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card text-white bg-secondary p-3">
+            <h5>Decommissioned</h5>
+            <h2><%= data.decommissionedAssets %></h2>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activity Log -->
+<table class="table">
+    <thead>
+        <tr>
+            <th>Date</th>
+            <th>Action</th>
+            <th>Asset Type</th>
+            <th>Quantity</th>
+        </tr>
+    </thead>
+    <tbody>
+        <% data.recentAllocations.forEach(item => { %>
+            <tr>
+                <td><%= item.date %></td>
+                <td><%= item.action %></td>
+                <td><%= item.type %></td>
+                <td><%= item.quantity %></td>
+            </tr>
+        <% }); %>
+    </tbody>
+</table>
+```
+
+---
+
+### 3. **Pass Data to Charts Dynamically**
+Modify the script to load dynamic data.
+
+```html
+<script>
+    const availableAssetsChartData = <%= JSON.stringify(data.assetCategories) %>;
+    const departmentChartData = <%= JSON.stringify(data.departmentAssets) %>;
+
+    const ctx2 = document.getElementById('availableAssetsChart').getContext('2d');
+    new Chart(ctx2, {
+        type: 'pie',
+        data: {
+            labels: availableAssetsChartData.map(item => item.label),
+            datasets: [{
+                data: availableAssetsChartData.map(item => item.value),
+                backgroundColor: ['blue', 'green', 'red', 'orange', 'purple']
+            }]
+        }
+    });
+
+    const ctx3 = document.getElementById('departmentChart').getContext('2d');
+    new Chart(ctx3, {
+        type: 'bar',
+        data: {
+            labels: departmentChartData.map(item => item.label),
+            datasets: [{
+                label: 'Allocated Assets',
+                data: departmentChartData.map(item => item.value),
+                backgroundColor: 'blue'
+            }]
+        }
+    });
+</script>
+```
+
+---
+
+### **What This Does**
+1. The backend (`server.js`) provides dynamic asset data.
+2. The EJS template (`dashboard.ejs`) renders real-time values.
+3. The charts update dynamically using JavaScript.
+
+Now, whenever you update your asset data in the backend, your dashboard will automatically reflect those changes! 🚀
+
+Let me know if you need any modifications!
