@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PO Table with Expandable Rows</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <style>
+        .hidden-row {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <h2>PO Data Table</h2>
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th></th>
+                    <th>PO Number</th>
+                    <th>Vendor Name</th>
+                    <th>Vendor Code</th>
+                    <th>Quantity</th>
+                    <th>Value</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><button class="btn btn-primary toggle-btn">+</button></td>
+                    <td>1231214815</td>
+                    <td>Acer</td>
+                    <td>12AC</td>
+                    <td>20</td>
+                    <td>25000</td>
+                    <td>12/01/24</td>
+                </tr>
+                <tr class="hidden-row">
+                    <td colspan="7">
+                        <table class="table table-sm table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Material Name</th>
+                                    <th>Material Code</th>
+                                    <th>Quantity</th>
+                                    <th>Price</th>
+                                    <th>Specs</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Monitor</td>
+                                    <td>M123</td>
+                                    <td>10</td>
+                                    <td>15000</td>
+                                    <td><button class="btn btn-info btn-sm specs-btn" data-asset="Monitor">Enter Specs</button></td>
+                                </tr>
+                                <tr>
+                                    <td>PC</td>
+                                    <td>PC123</td>
+                                    <td>10</td>
+                                    <td>10000</td>
+                                    <td><button class="btn btn-info btn-sm specs-btn" data-asset="PC">Enter Specs</button></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </td>
+                </tr>
+                <tr>
+                    <td><button class="btn btn-primary toggle-btn">+</button></td>
+                    <td>1231214816</td>
+                    <td>HP</td>
+                    <td>14HP</td>
+                    <td>15</td>
+                    <td>30000</td>
+                    <td>13/01/24</td>
+                </tr>
+                <tr class="hidden-row">
+                    <td colspan="7">
+                        <table class="table table-sm table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Material Name</th>
+                                    <th>Material Code</th>
+                                    <th>Quantity</th>
+                                    <th>Price</th>
+                                    <th>Specs</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Keyboard</td>
+                                    <td>K456</td>
+                                    <td>10</td>
+                                    <td>5000</td>
+                                    <td><button class="btn btn-info btn-sm specs-btn" data-asset="Keyboard">Enter Specs</button></td>
+                                </tr>
+                                <tr>
+                                    <td>Mouse</td>
+                                    <td>M789</td>
+                                    <td>5</td>
+                                    <td>2500</td>
+                                    <td><button class="btn btn-info btn-sm specs-btn" data-asset="Mouse">Enter Specs</button></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    
+    <div class="modal fade" id="specsModal" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Enter Specs</h5>
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                </div>
+                <div class="modal-body" id="modalBody">
+                    <!-- Dynamic content goes here -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        $(document).ready(function() {
+            $('.toggle-btn').click(function() {
+                var row = $(this).closest('tr').next('.hidden-row');
+                row.toggle();
+                $(this).text(row.is(':visible') ? '-' : '+');
+            });
+            
+            $('.specs-btn').click(function() {
+                var assetType = $(this).data('asset');
+                var modalBody = $('#modalBody');
+                modalBody.empty();
+                
+                if (assetType === "PC") {
+                    modalBody.append('<label>Processor:</label><input type="text" class="form-control">');
+                    modalBody.append('<label>RAM:</label><input type="text" class="form-control">');
+                    modalBody.append('<label>Storage:</label><input type="text" class="form-control">');
+                    modalBody.append('<label>Optional Accessories:</label><input type="text" class="form-control">');
+                } else if (assetType === "Monitor") {
+                    modalBody.append('<label>Screen Size:</label><input type="text" class="form-control">');
+                    modalBody.append('<label>Resolution:</label><input type="text" class="form-control">');
+                } else if (assetType === "Keyboard") {
+                    modalBody.append('<label>Type:</label><input type="text" class="form-control">');
+                    modalBody.append('<label>Wireless:</label><input type="text" class="form-control">');
+                } else if (assetType === "Mouse") {
+                    modalBody.append('<label>DPI:</label><input type="text" class="form-control">');
+                    modalBody.append('<label>Wireless:</label><input type="text" class="form-control">');
+                }
+                
+                $('#specsModal').modal('show');
+            });
+        });
+    </script>
+</body>
+</html>
