@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Issue Reporting - Asset Management</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .container {
+            max-width: 800px;
+            margin-top: 20px;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2 class="text-center">Report an Issue</h2>
+        <form id="issueForm">
+            <div class="form-group">
+                <label for="assetType">Asset Type:</label>
+                <select class="form-control" id="assetType" required>
+                    <option value="">Select Asset</option>
+                    <option value="Monitor">Monitor</option>
+                    <option value="PC">PC</option>
+                    <option value="Keyboard">Keyboard</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="issueDescription">Issue Description:</label>
+                <textarea class="form-control" id="issueDescription" rows="3" required></textarea>
+            </div>
+            <div class="form-group">
+                <label for="fileAttachment">Attach Image (optional):</label>
+                <input type="file" class="form-control-file" id="fileAttachment">
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Submit Issue</button>
+        </form>
+        <hr>
+        <h4 class="text-center">Submitted Issues</h4>
+        <table class="table table-bordered mt-3">
+            <thead>
+                <tr>
+                    <th>Asset Type</th>
+                    <th>Issue</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody id="issuesTable">
+                <tr class="hidden" id="noIssues">
+                    <td colspan="3" class="text-center">No issues reported yet.</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    
+    <script>
+        $(document).ready(function() {
+            $('#issueForm').submit(function(event) {
+                event.preventDefault();
+                var assetType = $('#assetType').val();
+                var issueDescription = $('#issueDescription').val();
+                
+                if (!assetType || !issueDescription) {
+                    alert("Please fill out all required fields.");
+                    return;
+                }
+                
+                var newRow = `<tr>
+                                <td>${assetType}</td>
+                                <td>${issueDescription}</td>
+                                <td><span class='badge badge-warning'>Pending</span></td>
+                              </tr>`;
+                
+                $('#issuesTable').append(newRow);
+                $('#noIssues').hide();
+                $('#issueForm')[0].reset();
+            });
+        });
+    </script>
+</body>
+</html>
