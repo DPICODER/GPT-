@@ -1,0 +1,105 @@
+Nice, V11 — this sounds like a solid next step after your asset management system. Let's organize this smartly from a backend route architecture perspective. The goal here is clear separation of concerns and meaningful naming that’s intuitive and scalable.
+
+
+---
+
+Breakdown of Features You Mentioned
+
+1. Unmapped GST Data — fields like Miro/Migo missing for some client entries.
+
+
+2. Manual Mapping UI — user sees their unmapped GSTs and maps them.
+
+
+3. Client-specific data — only logged-in client can map their data.
+
+
+4. Tabular View for Miro & Migo GSTs — complete view of all GSTs.
+
+
+
+
+---
+
+Suggested Route Naming Convention (RESTful + Semantic)
+
+Base path: /gst
+
+
+---
+
+1. View Unmapped GST Entries
+
+GET /gst/unmapped
+Description: Fetches all unmapped GST entries for the logged-in client.
+
+POST /gst/map
+Description: Accepts mapping data submitted by client for their unmapped entries.
+
+
+
+---
+
+2. Get Full Miro/Migo GST Tables
+
+GET /gst/miro
+Description: Returns all Miro GSTs (tabular).
+
+GET /gst/migo
+Description: Returns all Migo GSTs (tabular).
+
+Optional:
+If you want to filter by client or date:
+/gst/miro?clientId=xxx&from=yyy&to=zzz
+
+
+
+---
+
+3. Admin or Utility Routes (Optional)
+
+If there’s a superadmin user, or you're planning scheduled syncs or cleanup:
+
+GET /gst/sync-status
+Description: Shows how many entries are unmapped, last sync, etc.
+
+POST /gst/refresh
+Description: Triggers data fetch/update (if data is from external ERP, etc.)
+
+
+
+---
+
+4. Client Routes (Optional)
+
+If you want separate paths for client context:
+
+GET /client/:clientId/gst/unmapped
+
+POST /client/:clientId/gst/map
+
+
+But this is optional if you're using session/user-token-based filtering on the backend.
+
+
+---
+
+Frontend EJS Pages Mapping (Optional Suggestion)
+
+
+---
+
+Pro Tips
+
+Use client_id from req.user or req.session in backend so you don’t need to expose it in frontend.
+
+Maintain a separate mapping_status flag in DB (e.g., isMapped = false/true) for clarity.
+
+Add logs or an audit trail table for when a user maps an entry — good for future debugging/reporting.
+
+
+
+---
+
+Want me to sketch out an EJS template structure or Sequelize model for this too?
+
