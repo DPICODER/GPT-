@@ -1,0 +1,466 @@
+document.addEventListener('DOMContentLoaded', () => {
+    // --- DOM Element References ---
+    const plantSelect = document.getElementById('plant-select');
+    const plantDetailsSection = document.getElementById('plant-details-section');
+    const userInput = document.getElementById('user-input');
+    const addUserButton = document.getElementById('add-user-button');
+    const addedUsersList = document.getElementById('added-users-list');
+    const noUsersAddedItem = document.getElementById('no-users-added');
+    const userLimitWarning = document.getElementById('user-limit-warning');
+    const mappingForm = document.getElementById('mapping-form');
+    const historyTableBody = document.getElementById('history-body');
+    const historyTable = document.getElementById('history-table');
+    const noHistoryMessage = document.getElementById('no-history-message');
+    const historyPlantName = document.getElementById('history-plant-name');
+    const assignPlantName = document.getElementById('assign-plant-name');
+    const currentControllerDisplay = document.querySelector('#current-controller-display .controller-name');
+    const currentYearSpan = document.getElementById('current-year');
+    const currentTimeSpan = document.getElementById('current-time');
+
+    // --- Configuration ---
+    const MAX_USERS_PER_ASSIGNMENT = 3;
+    const MIN_USERS_PER_ASSIGNMENT = 1;
+
+    // --- State ---
+    // These will be populated by backend calls
+    let users = [];
+    let userSet = new Set();
+    let plants = [];
+    let globalAssignmentHistory = []; // May store all history, or just history for the selected plant depending on backend design
+    let currentlySelectedPlant = null;
+    let currentAssignmentUsers = [];
+
+    // --- API Endpoints (Example Placeholders) ---
+    const API_BASE_URL = '/api'; // Adjust if your Node.js API routes have a prefix
+    const API_PLANTS_ENDPOINT = `${API_BASE_URL}/plants`;
+    const API_USERS_ENDPOINT = `${API_BASE_URL}/users`;
+    const API_HISTORY_ENDPOINT = `${API_BASE_URL}/history`; // e.g., /api/history?plant=Plant+1
+    const API_ASSIGNMENTS_ENDPOINT = `${API_BASE_URL}/assignments`;
+
+    // --- Functions ---
+
+    // Populate Select Options (No changes needed)
+    function populateSelect(selectElement, options, placeholder) {
+        selectElement.innerHTML = ''; // Clear existing
+        if (placeholder) {
+            const placeholderOpt = document.createElement('option');
+            placeholderOpt.value = "";
+            placeholderOpt.textContent = placeholder;
+            placeholderOpt.disabled = true;
+            placeholderOpt.selected = true;
+            selectElement.appendChild(placeholderOpt);
+        }
+        // Ensure options is an array before iterating
+        if (Array.isArray(options)) {
+             options.forEach(optionData => {
+                // Assuming options might be objects like { id: 'plant1', name: 'Plant 1' }
+                // Or just strings like 'Plant 1'
+                const value = typeof optionData === 'object' ? optionData.id : optionData;
+                const text = typeof optionData === 'object' ? optionData.name : optionData;
+
+                const option = document.createElement('option');
+                option.value = value;
+                option.textContent = text;
+                selectElement.appendChild(option);
+            });
+        } else {
+             console.error("Options provided to populateSelect is not an array:", options);
+        }
+    }
+
+    // Format Timestamp (IST) (No changes needed)
+    function formatTimestamp(date) {
+        try {
+            // Ensure input is a Date object
+            const dateObj = date instanceof Date ? date : new Date(date);
+             if (isNaN(dateObj.getTime())) { // Check if the date is valid
+                throw new Error("Invalid date for formatting");
+            }
+            return new Intl.DateTimeFormat('en-IN', {
+                year: 'numeric', month: 'short', day: 'numeric',
+                hour: '2-digit', minute: '2-digit', second: '2-digit',
+                hour12: true, timeZone: 'Asia/Kolkata'
+            }).format(dateObj);
+        } catch (e) {
+             console.error("Error formatting timestamp:", e, "Input:", date);
+             return 'Invalid Date'; // Provide fallback text
+        }
+    }
+
+    // Display Current Time (IST) (No changes needed)
+    function displayCurrentTime() {
+        try {
+            currentTimeSpan.textContent = new Intl.DateTimeFormat('en-IN', {
+                dateStyle: 'medium', timeStyle: 'long', timeZone: 'Asia/Kolkata'
+            }).format(new Date());
+        } catch (e) { currentTimeSpan.textContent = new Date().toLocaleString(); }
+    }
+
+    // Render the list of users temporarily added for assignment (No changes needed)
+    function renderAddedUsersList() {
+        while (addedUsersList.firstChild && addedUsersList.firstChild !== noUsersAddedItem) {
+            addedUsersList.removeChild(addedUsersList.firstChild);
+        }
+        noUsersAddedItem.classList.toggle('d-none', currentAssignmentUsers.length > 0);
+
+        currentAssignmentUsers.forEach(user => {
+            const li = document.createElement('li');
+            li.className = 'list-group-item d-flex justify-content-between align-items-center';
+             // Assuming user is just a string name. Adjust if user is an object.
+             const userName = typeof user === 'object' ? user.name : user;
+             li.textContent = userName;
+
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'btn btn-danger btn-sm btn-remove-user';
+            removeBtn.textContent = 'Remove';
+            removeBtn.setAttribute('aria-label', `Remove ${userName}`);
+            removeBtn.dataset.user = userName; // Store user name/id for removal
+
+            removeBtn.addEventListener('click', handleRemoveUser);
+
+            li.appendChild(removeBtn);
+            addedUsersList.insertBefore(li, noUsersAddedItem);
+        });
+
+        userLimitWarning.classList.toggle('d-none', currentAssignmentUsers.length < MAX_USERS_PER_ASSIGNMENT);
+        const limitReached = currentAssignmentUsers.length >= MAX_USERS_PER_ASSIGNMENT;
+        addUserButton.disabled = limitReached;
+        userInput.disabled = limitReached;
+    }
+
+    // Handle removing a user from the temporary list (No changes needed)
+    function handleRemoveUser(event) {
+        const userToRemove = event.target.dataset.user;
+         // Adjust filtering logic if currentAssignmentUsers contains objects
+        currentAssignmentUsers = currentAssignmentUsers.filter(u => (typeof u === 'object' ? u.name !== userToRemove : u !== userToRemove));
+        renderAddedUsersList();
+    }
+
+    // Render History Table & Update Controller Display
+    // Takes the history data for the specific plant as an argument
+    function renderPlantDetails(plantSpecificHistory = []) {
+        historyTableBody.innerHTML = ''; // Clear table body
+
+        // Sort history (assuming it might not be sorted from backend)
+        plantSpecificHistory.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)); // Newest first
+
+        // Update Current Controller Display
+        if (plantSpecificHistory.length > 0) {
+            // The 'controller' is the user from the most recent assignment entry
+            // Assuming history entry has a 'user' field (which might be an object or string)
+            const latestUser = plantSpecificHistory[0].user;
+            currentControllerDisplay.textContent = typeof latestUser === 'object' ? latestUser.name : latestUser;
+            currentControllerDisplay.classList.remove('text-muted');
+        } else {
+            currentControllerDisplay.textContent = 'None';
+            currentControllerDisplay.classList.add('text-muted');
+        }
+
+        // Populate History Table
+        if (plantSpecificHistory.length === 0) {
+            historyTable.classList.add('d-none');
+            noHistoryMessage.classList.remove('d-none');
+            // Use currentlySelectedPlant name which should be set when this is called
+            noHistoryMessage.textContent = `No assignment history found for ${currentlySelectedPlant || 'this plant'}.`;
+        } else {
+            historyTable.classList.remove('d-none');
+            noHistoryMessage.classList.add('d-none');
+
+            plantSpecificHistory.forEach(entry => {
+                const row = historyTableBody.insertRow();
+                const cellTimestamp = row.insertCell();
+                const cellUser = row.insertCell();
+                cellTimestamp.textContent = formatTimestamp(entry.timestamp); // Pass timestamp directly
+                 // Adjust if user is an object: entry.user.name
+                const entryUser = entry.user;
+                 cellUser.textContent = typeof entryUser === 'object' ? entryUser.name : entryUser;
+            });
+        }
+    }
+
+    // --- Local Storage Functions (Removed/Commented Out) ---
+    /*
+    function saveHistory() {
+        try { localStorage.setItem('userPlantAssignmentHistory', JSON.stringify(globalAssignmentHistory)); }
+        catch (e) { console.error("Save history failed:", e); }
+    }
+
+    function loadHistory() {
+        try {
+            const storedHistory = localStorage.getItem('userPlantAssignmentHistory');
+            globalAssignmentHistory = storedHistory ? JSON.parse(storedHistory) : [];
+        } catch (e) {
+            console.error("Load history failed:", e);
+            globalAssignmentHistory = [];
+            localStorage.removeItem('userPlantAssignmentHistory');
+        }
+    }
+    */
+
+    // --- Event Listeners ---
+
+    // Plant Selection Change - Now ASYNCHRONOUS to fetch history
+    plantSelect.addEventListener('change', async (event) => { // Added async
+        currentlySelectedPlant = event.target.value;
+
+        if (currentlySelectedPlant) {
+            plantDetailsSection.classList.remove('d-none');
+            // Update names shown in the UI
+            historyPlantName.textContent = currentlySelectedPlant;
+            assignPlantName.textContent = currentlySelectedPlant;
+
+            // Clear previously added users for the new plant selection
+            currentAssignmentUsers = [];
+            renderAddedUsersList();
+            userInput.value = '';
+
+            // --- BACKEND INTEGRATION POINT ---
+            // Fetch history for the selected plant
+            console.log(`Workspaceing history for: ${currentlySelectedPlant}`);
+            try {
+                // Example: GET /api/history?plant=Plant+X
+                const url = new URL(API_HISTORY_ENDPOINT, window.location.origin);
+                url.searchParams.append('plant', currentlySelectedPlant); // Pass plant name/ID as query param
+
+                const response = await fetch(url.toString()); // Use await for async operation
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                const plantSpecificHistory = await response.json(); // Expecting JSON array from backend
+
+                // Store fetched history (optional, could just pass directly)
+                // globalAssignmentHistory = plantSpecificHistory; // Decide if you need global history
+
+                // Render the details using the fetched history
+                renderPlantDetails(plantSpecificHistory);
+
+            } catch (error) {
+                console.error("Failed to fetch plant history:", error);
+                // Handle UI update on error - show message, clear table?
+                historyTableBody.innerHTML = ''; // Clear table on error
+                currentControllerDisplay.textContent = 'Error';
+                currentControllerDisplay.classList.add('text-muted');
+                historyTable.classList.add('d-none');
+                noHistoryMessage.classList.remove('d-none');
+                noHistoryMessage.textContent = `Failed to load history for ${currentlySelectedPlant}. Please try again.`;
+                // Optionally reset global history: globalAssignmentHistory = [];
+            }
+            // --- END BACKEND INTEGRATION POINT ---
+
+        } else {
+            // Hide details section if "-- Choose a Plant --" is selected
+            plantDetailsSection.classList.add('d-none');
+            currentlySelectedPlant = null;
+             // Optionally clear history display explicitly
+             renderPlantDetails([]); // Render empty state
+        }
+    });
+
+    // Add User Button Click (Minor change for user object potential)
+    addUserButton.addEventListener('click', () => {
+        const userToAddName = userInput.value.trim();
+
+        if (!userToAddName) {
+            alert('Please enter a user name.');
+            return;
+        }
+
+        // Check if user exists in our master list (fetched from backend)
+        // userSet likely contains names/IDs. Adjust if it contains objects.
+        if (!userSet.has(userToAddName)) {
+             alert(`User "${userToAddName}" does not exist or is not loaded.`);
+             return;
+        }
+
+        // Check if user is already added to the current list
+        // Adjust check if currentAssignmentUsers contains objects
+        const alreadyAdded = currentAssignmentUsers.some(u => (typeof u === 'object' ? u.name === userToAddName : u === userToAddName));
+        if (alreadyAdded) {
+            alert(`User "${userToAddName}" is already added.`);
+            return;
+        }
+
+        if (currentAssignmentUsers.length >= MAX_USERS_PER_ASSIGNMENT) {
+            alert(`You can only assign a maximum of ${MAX_USERS_PER_ASSIGNMENT} users at a time.`);
+            userLimitWarning.classList.remove('d-none');
+            return;
+        }
+
+        // --- Find the actual user data (if needed later for sending ID) ---
+        // If you need to send user IDs instead of names to the backend,
+        // find the full user object here from the 'users' array.
+        // const userObject = users.find(u => u.name === userToAddName); // Example if users are objects {id: ..., name: ...}
+        // const userToAddToList = userObject || userToAddName; // Use object if found, else fallback to name
+
+        // For simplicity now, just adding the name string:
+        const userToAddToList = userToAddName;
+         // --- End Find ---
+
+        currentAssignmentUsers.push(userToAddToList);
+        renderAddedUsersList();
+        userInput.value = '';
+        userInput.focus();
+    });
+
+    // Allow adding user by pressing Enter (No changes needed)
+     userInput.addEventListener('keypress', (event) => {
+         if (event.key === 'Enter') {
+             event.preventDefault();
+             addUserButton.click();
+         }
+     });
+
+    // Handle Assignment Form Submission - Now ASYNCHRONOUS to send data
+    mappingForm.addEventListener('submit', async (event) => { // Added async
+        event.preventDefault();
+
+        if (!currentlySelectedPlant) {
+            alert('Error: No plant is selected.');
+            return;
+        }
+        if (currentAssignmentUsers.length < MIN_USERS_PER_ASSIGNMENT || currentAssignmentUsers.length > MAX_USERS_PER_ASSIGNMENT) {
+            alert(`Please add between ${MIN_USERS_PER_ASSIGNMENT} and ${MAX_USERS_PER_ASSIGNMENT} user(s) to assign.`);
+            return;
+        }
+
+        // --- BACKEND INTEGRATION POINT ---
+        // Prepare data to send to the backend
+        const assignmentData = {
+            plant: currentlySelectedPlant, // Send plant name or ID
+            // Send user names or preferably user IDs if available
+            users: currentAssignmentUsers.map(user => typeof user === 'object' ? user.id : user), // Example: Extract IDs if users are objects
+            timestamp: new Date().toISOString() // Backend might generate its own timestamp
+        };
+
+        console.log("Sending assignment data:", assignmentData);
+
+        try {
+            // Disable form elements during submission
+            mappingForm.querySelector('button[type="submit"]').disabled = true;
+            userInput.disabled = true;
+            addUserButton.disabled = true;
+
+            // Example: POST /api/assignments
+            const response = await fetch(API_ASSIGNMENTS_ENDPOINT, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                     // Add authentication headers if needed (e.g., JWT token)
+                     // 'Authorization': `Bearer ${your_auth_token}`
+                },
+                body: JSON.stringify(assignmentData) // Send the data as JSON
+            });
+
+            if (!response.ok) {
+                 // Try to get error message from backend response body
+                let errorMsg = `HTTP error! Status: ${response.status}`;
+                try {
+                     const errorBody = await response.json();
+                     errorMsg = errorBody.message || errorMsg; // Use backend message if available
+                } catch (e) { /* Ignore if response body is not JSON */ }
+                throw new Error(errorMsg);
+            }
+
+            const result = await response.json(); // Optional: Get response from backend (e.g., confirmation)
+            console.log("Assignment successful:", result);
+            alert(`${assignmentData.users.length} user(s) successfully assigned to ${currentlySelectedPlant}.`);
+
+            // SUCCESS: Clear the input list and refresh the history display
+            currentAssignmentUsers = [];
+            renderAddedUsersList();
+            userInput.value = '';
+
+            // Fetch the updated history for the current plant to show the new entries immediately
+            // Re-using the logic from the plantSelect handler
+             try {
+                 const url = new URL(API_HISTORY_ENDPOINT, window.location.origin);
+                 url.searchParams.append('plant', currentlySelectedPlant);
+                 const historyResponse = await fetch(url.toString());
+                 if (!historyResponse.ok) throw new Error(`HTTP error! Status: ${historyResponse.status}`);
+                 const updatedHistory = await historyResponse.json();
+                 renderPlantDetails(updatedHistory);
+             } catch (historyError) {
+                 console.error("Failed to fetch updated history after assignment:", historyError);
+                 // May want to inform user that refresh might be needed
+                  renderPlantDetails([]); // Clear display if refresh fails
+                 noHistoryMessage.textContent = `Assignment saved, but failed to refresh history. Please re-select the plant.`;
+                 noHistoryMessage.classList.remove('d-none');
+                 historyTable.classList.add('d-none');
+             }
+
+        } catch (error) {
+            console.error("Failed to save assignment:", error);
+            alert(`Error assigning users: ${error.message}`); // Show error to user
+        } finally {
+             // Re-enable form elements regardless of success/failure
+             // Check if limit is reached before re-enabling add controls
+             const limitReached = currentAssignmentUsers.length >= MAX_USERS_PER_ASSIGNMENT;
+             mappingForm.querySelector('button[type="submit"]').disabled = false;
+             userInput.disabled = limitReached;
+             addUserButton.disabled = limitReached;
+        }
+        // --- END BACKEND INTEGRATION POINT ---
+    });
+
+    // --- Initialization --- ASYNCHRONOUS
+    async function initializeApp() {
+        currentYearSpan.textContent = new Date().getFullYear();
+        displayCurrentTime(); // Initial display
+        setInterval(displayCurrentTime, 1000); // Update time every second
+
+        // --- BACKEND INTEGRATION POINT ---
+        // Fetch initial data (Plants and Users)
+        try {
+            console.log("Fetching initial data (plants and users)...");
+             // Set loading states? Disable selects?
+             plantSelect.disabled = true;
+             userInput.disabled = true; // Disable user input until users are loaded
+
+            // Fetch plants and users in parallel
+            const [plantResponse, userResponse] = await Promise.all([
+                fetch(API_PLANTS_ENDPOINT),
+                fetch(API_USERS_ENDPOINT)
+            ]);
+
+            if (!plantResponse.ok) throw new Error(`Failed to fetch plants: ${plantResponse.status}`);
+            if (!userResponse.ok) throw new Error(`Failed to fetch users: ${userResponse.status}`);
+
+            const fetchedPlants = await plantResponse.json(); // Expecting array like ['Plant 1', ...] or [{id: 'p1', name: 'Plant 1'}, ...]
+            const fetchedUsers = await userResponse.json(); // Expecting array like ['User 1', ...] or [{id: 'u1', name: 'User 1'}, ...]
+
+             // Update state
+             plants = fetchedPlants;
+             users = fetchedUsers;
+             // Create userSet for quick lookups (assuming names are unique identifiers for now)
+             // Adjust if users are objects: userSet = new Set(fetchedUsers.map(u => u.name));
+             userSet = new Set(fetchedUsers.map(user => typeof user === 'object' ? user.name : user));
+
+            // Populate dropdowns with fetched data
+            populateSelect(plantSelect, plants, '-- Choose a Plant --');
+
+            console.log("Initial data loaded successfully.");
+
+        } catch (error) {
+            console.error("Initialization failed:", error);
+            // Display an error message to the user, maybe disable the app?
+             plantSelect.innerHTML = '<option value="" disabled selected>Error loading plants</option>';
+            alert(`Failed to load initial application data: ${error.message}`);
+        } finally {
+            // Re-enable controls after loading attempt
+             plantSelect.disabled = false;
+             // Keep user input disabled until a plant is selected AND users are loaded
+             userInput.disabled = true; // Will be enabled/disabled by renderAddedUsersList later
+             addUserButton.disabled = true; // Will be enabled/disabled by renderAddedUsersList later
+        }
+        // --- END BACKEND INTEGRATION POINT ---
+
+        // loadHistory(); // Removed - history loaded on plant selection
+        renderAddedUsersList(); // Initial render of the (empty) added users list
+    }
+
+    // Start the application initialization
+    initializeApp();
+
+});
