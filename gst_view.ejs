@@ -1,0 +1,96 @@
+<%- include('partials/header', { title: "Dashboard" }) %>
+
+    <h1>DataTable with Server-Side Processing</h1>
+    <div class="container-fluid">
+        <div class="card shadow">
+            <div class="card-body">
+                <table id="dataTable" class="display">
+                    <thead>
+                        <tr>
+                            <th>PO No</th>
+                            <th>GST Supplier</th>
+                            <th>Invoice No</th>
+                            <th>Invoice Date</th>
+                            <th>Invoice Type</th>
+                            <th>Taxable Amount</th>
+                            <th>State Tax</th>
+                            <th>Central Tax</th>
+                            <th>Total Amount</th>
+                            <th>Month</th>
+                            <th>Plant No</th>
+                            <th>MIRO No</th>
+                            <th>MIRO Year</th>
+                            <th>MIGO No</th>
+                            <th>MIGO Year</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+<script>
+    $(document).ready(function() {
+        $('#dataTable').DataTable({
+            processing: true,
+            serverSide: true, // Keep serverSide true for main data loading
+            ajax: {
+                url: '/api/getData', // Your API endpoint for table data
+                type: 'GET',
+                data: function(d) {
+                    console.log("DataTables request data:", d); // Log request data
+                    return d; // Send standard DataTables params
+                },
+                error: function (xhr, error, thrown) { // Add basic error handling
+                     console.error("DataTables AJAX Error:", error, thrown);
+                     alert("Error loading data from server. Check console.");
+                }
+            },
+            columns: [
+                // Ensure 'name' matches 'data' if not explicitly different
+                // Mark non-searchable/orderable columns if needed
+                { data: 'po_no', name: 'po_no' },
+                { data: 'gst_supplier', name: 'gst_supplier' },
+                { data: 'invoice_no', name: 'invoice_no' },
+                { data: 'invoice_date', name: 'invoice_date' }, // Consider type for sorting
+                { data: 'invoice_type', name: 'invoice_type' },
+                { data: 'taxable_amount', name: 'taxable_amount' }, // Numeric, consider type
+                { data: 'state_tax', name: 'state_tax' },         // Numeric
+                { data: 'central_tax', name: 'central_tax' },     // Numeric
+                { data: 'total_amount', name: 'total_amount' },   // Numeric
+                { data: 'month', name: 'month' },
+                { data: 'plant_no', name: 'plant_no' },
+                { data: 'miro_no', name: 'miro_no' },
+                { data: 'miro_year', name: 'miro_year' },
+                { data: 'migo_no', name: 'migo_no' },
+                { data: 'migo_year', name: 'migo_year' }
+                // Example: If a column shouldn't be searchable/orderable:
+                // { data: 'internal_id', name: 'internal_id', searchable: false, orderable: false },
+            ],
+            // --- Add Buttons Configuration ---
+            dom: 'lBfrtip', // 'B' inserts buttons 'l'ength, 'f'ilter, 'r'processing, 't'able, 'i'nfo, 'p'aging
+            buttons: [
+                {
+                    text: 'Export CSV',
+                    action: function ( e, dt, node, config ) {
+                        // Redirect to the server-side export endpoint
+                         window.location.href = '/api/exportData?format=csv';
+                    }
+                },
+                {
+                    text: 'Export Excel',
+                    action: function ( e, dt, node, config ) {
+                        // Redirect to the server-side export endpoint
+                        window.location.href = '/api/exportData?format=excel';
+                    }
+                }
+                // --- OR Use Client-Side Export (Simpler, exports current view) ---
+                // 'copy', 'csv', 'excel', 'pdf', 'print'
+                // If using client-side, remove the server-side '/api/exportData' route
+            ]
+            // --- End Buttons Configuration ---
+        });
+    });
+</script>
+<%- include('partials/footer') %>
