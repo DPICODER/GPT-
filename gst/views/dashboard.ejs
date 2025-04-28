@@ -1,0 +1,21 @@
+<%- include('partials/header', { title: "Dashboard" }) %>
+<div class="container-fluid">
+<h2 class="text-center">Dashboard</h2>
+    <div class="card shadow col-md-12 ">
+        <div class="card-body">
+            <div class="card shadow col-md-3 ms-auto">
+                <div class="card-body">
+                    <h5>Quick Links</h5>
+                    <ul class="unlist text-center">
+                        <li style="list-style: none;"><a class="btn btn-light shadow my-1 w-100 border "  href="/gst/user/register">Register a user</a></li>
+                        <li style="list-style: none;"><a class="btn btn-light shadow my-1 w-100 border "  href="/gst/plant/map">User Plant Map</a></li>
+                        <li style="list-style: none;"><a class="btn btn-light shadow my-1 w-100 border "  href="#">Gst View</a></li>
+                        <li style="list-style: none;"><a class="btn btn-light shadow my-1 w-100 border "  href="#">Orphaned Record's view</a></li>
+                        <li style="list-style: none;"><a class="btn btn-light shadow my-1 w-100 border "  href="/gst/user/logout">Logout</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<%- include('partials/footer') %>

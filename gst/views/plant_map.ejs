@@ -1,0 +1,65 @@
+<%- include('partials/header', { title: "Plant Map" }) %>
+
+<div class="container">
+    <div class="row">
+        <div class="content col-md-3">
+            <div class="card shadow mt-4">
+                <div class="card-body">
+                    <h5>Plant Data</h5>
+                    <select name="plantData" id="plantData" class="form-select shadow mt-3">
+                        <option disabled selected><%= currentValue || "Select a Plant"%></option>
+                        <%if(plantData&&plantData.length>0){%>
+                            <%plantData.forEach(plant=>{%>
+                                <option value="<%=plant.c_value_1+" "+plant.c_value_2%>"><%=plant.c_value_1+" "+plant.c_value_2%></option>    
+                            <%})%>
+                        <%}%>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="card shadow col-md-9">
+            <div class="card-body">
+                <table class="table table-responsive table-striped table-bordered">
+                    <thead>
+                        <tr>
+                            <th>id</th>
+                            <th>plant id</th>
+                            <th>plant name</th>
+                            <th>user id</th>
+                            <th>user name</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <%if(plant_user_data){%>
+                            <%plant_user_data.forEach(user=>{%>
+                                <tr>
+                                    <th><%=user.id%></th>
+                                    <th><%=user.plant_id%></th>
+                                    <th><%=user.plant_name%></th>
+                                    <th><%=user.user_id%></th>
+                                    <th><%=user.user_name%></th>
+                                </tr>
+                            <%})%>
+                        <%}%>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+
+    </div>
+</div>
+
+<script>
+    $(document).ready(function(){
+        
+        $(document).on('change','#plantData',function(e){
+            const select_plant  = $(this).val();
+            window.location.href = `/gst/plant/map?plant_id=${select_plant}`
+        })
+
+
+    })
+</script>
+
+<%- include('partials/footer') %>

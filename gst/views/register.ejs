@@ -1,0 +1,78 @@
+<%- include('partials/header', { title: "Register" }) %>
+
+<div class="container d-flex justify-content-center align-items-center vh-100">
+    <div class="card shadow col-md-6">
+        <div class="card-header text-center">
+            <h3>Register Users</h3>
+        </div>
+        <div class="card-body">
+            <form action="/gst/user/register" method="post" name="registerForm" id="registerForm">
+                <div class="form-group mb-3">
+                    <label for="username" class="form-label">Username</label>
+                    <input autocomplete="off" required type="text" name="username" id="username" class="form-control shadow" placeholder="Enter your username">
+                </div>
+                <div class="form-group mb-3">
+                    <label for="email" class="form-label">Email</label>
+                    <input autocomplete="off" required type="email" name="email" id="email" class="form-control shadow" placeholder="Enter your email">
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <div class="form-group">
+                            <label for="user_role" class="form-label">Role</label>
+                            <select name="user_role" id="user_role" class="form-select shadow">
+                                <option value="" disabled selected>Select a role</option>
+                                <option value="user">User</option>
+                                <option value="admin">Admin</option>
+                                <option value="superUser">SuperUser</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="form-group">
+                            <label for="password" class="form-label">Password</label>
+                            <input autocomplete="off" required type="password" name="password" id="password" class="form-control shadow" placeholder="Create a password">
+                        </div>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary shadow form-control mt-3">Register</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    $(document).ready(function(e){
+        $('#registerForm').on('submit',function(e){
+            e.preventDefault();
+
+            var formData = $(this).serializeArray();
+            var data = {}
+
+            $.each(formData,function(i,field){
+                data[field.name] = field.value;
+            });
+
+            console.log("DATA Processed : ",data);
+            
+            $.ajax({
+                url:`/gst/user/register`,
+                type:'POST',
+                contentType:'application/json',
+                data:JSON.stringify(data),
+                success:function(response){
+                    console.log("server Success :",response);
+                    alert(`${response.message}`);
+                    // Redirect or clear form as needed
+                },error:function(xhr,status,errorThrown){
+                    console.error("Server Error",xhr.status);
+                    console.error("Response Text",xhr.responseText);
+                    console.error("Error Thrown",xhr.errorThrown);
+                    alert(`Error: ${xhr.responseJSON?.message || xhr.responseText || "Unknown Error."}`);
+                }
+            })
+
+        })
+    })
+</script>
+
+<%- include('partials/footer') %>
